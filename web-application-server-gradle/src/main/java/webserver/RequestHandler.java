@@ -1,10 +1,8 @@
 package webserver;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +18,35 @@ public class RequestHandler extends Thread { //쓰레드 클래스를 상속받�
     public void run() {
         log.debug("New Client Connect! Connected IP : {}, Port : {}", connection.getInetAddress(),
                 connection.getPort());
-
+        // 1단계
         try (InputStream in = connection.getInputStream();
              OutputStream out = connection.getOutputStream()) {
-            // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
+            //inputStream을 한 줄 단위로 읽기 위해 BufferReader를 생성
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+            //BufferReader.readLine() 메소드를 활용해 라인별로 HTTP 요청 정보를 읽는다
+            String line = bufferedReader.readLine();
+            if(line == null) {
+                return;
+            }
+            // 2단계
+            String[] splited = line.split(" ");
+            String url = splited[1];
+            while (!"".equals(line)) {
+                log.info("header : {} ", line);
+                line = bufferedReader.readLine();
+            }
+            // 3단계
             DataOutputStream dos = new DataOutputStream(out);
-            byte[] body = "Hello World".getBytes();
+            String path = System.getProperty("user.dir") + "/webapp" + url;
+//            String path = "C:/Users/PC/Desktop/projects/nextstepjava/web-application-server-gradle/webapp" + url;
+
+            File file = new File(path);
+            if (!file.exists()) {
+                log.error("File not found: " + file.getAbsolutePath());
+                // 404 응답 처리 등
+                return;
+            }
+            byte[] body = Files.readAllBytes(file.toPath());
             response200Header(dos, body.length);
             responseBody(dos, body);
         } catch (IOException e) {
